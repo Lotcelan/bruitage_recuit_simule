@@ -8,7 +8,7 @@ On part d'une image complètement bruitée (ou image quelconque), et on utilise 
 
 ### Avec bruit de couleur, mode "distance euclidienne"
 
-<video src="assets/bruitage_euclidien-2023-06-08_08.46.38.mp4" controls title="exemple_couleur"/>
+https://github.com/Lotcelan/bruitage_recuit_simule/assets/40437798/3ef7539b-fa3f-4ac6-9a66-fbbab3c81a6b
 
 ### Transformation d'image
 
