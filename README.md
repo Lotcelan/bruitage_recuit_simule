@@ -25,3 +25,5 @@ Etant donné une image :
 - [ ] : Faire énergie "masque"
 - [ ] : Faire générateur de masque
     - [ ] : Générer masque à partir d'une image  
+
+Pouet
