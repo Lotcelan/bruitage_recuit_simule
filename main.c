@@ -1,9 +1,11 @@
 #include <stdio.h>
 #include <time.h>
 #include "utils.h"
+#include "energies.h"
 
 #define COMPLETE_RANDOM 0
-#define GAUSSIAN 1
+#define EUCLIDIAN 1
+#define STRAIGHT_VERTICAL 2
 
 /*
 #define RAYGUI_IMPLEMENTATION
@@ -13,28 +15,6 @@
 */
 
 
-float euclidian_color_dist(Color col1, Color col2) {
-    return sqrt( pow(col1.r - col2.r, 2) + pow(col1.g - col2.g, 2) + pow(col1.b - col2.b, 2));
-}
-
-float euclidian_energy(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth) {
-    float c = 0.;
-    for (int i = 0; i < numPixelsHeight; i++) {
-        for (int j = 0; j < numPixelsWidth; j++) {
-            if (i < numPixelsHeight - 1) {
-                c += euclidian_color_dist(pixels[idx(i, j, numPixelsWidth)].color, pixels[idx(i+1, j, numPixelsWidth)].color);
-                if (j < numPixelsWidth - 1) {
-                    c += euclidian_color_dist(pixels[idx(i, j, numPixelsWidth)].color, pixels[idx(i+1, j+1, numPixelsWidth)].color);
-                }
-            }
-            if (j < numPixelsWidth - 1) {
-                c += euclidian_color_dist(pixels[idx(i, j, numPixelsWidth)].color, pixels[idx(i, j+1, numPixelsWidth)].color);
-            }
-        }
-    }
-
-    return c;
-}
 
 
 void runMainLoop(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth, float pixelSize, int mode) {
@@ -44,18 +24,29 @@ void runMainLoop(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth, f
     float finalTemperature = 0;
 
     int iteration = 0;
-    int freqDisplay = 700;
+    int freqDisplay = 1;
 
     CustomPixel* neighbourPixels = (CustomPixel*)malloc(sizeof(CustomPixel) * numPixelsHeight * numPixelsWidth);
+    copyArrayTo(neighbourPixels, pixels, numPixelsHeight, numPixelsWidth);
 
     float delta = 0;
     float p = 0;
 
+    Couple lastModified = (Couple){ .p1 = (Point){ .i = 0, .j = 0}, .p2 = (Point){ .i = 0, .j = 0} };
+    bool shouldModify = false;
+
     while (temperature > finalTemperature) {
         iteration++;
-        copyArrayTo(neighbourPixels, pixels, numPixelsHeight, numPixelsWidth);
-        //swapRandomPixels(neighbourPixels, numPixelsHeight, numPixelsWidth);
-        swapRandomPixelsColors(neighbourPixels, numPixelsHeight, numPixelsWidth);
+
+        if (shouldModify) {
+            changeCouplePixelInArray(pixels, neighbourPixels, lastModified, numPixelsWidth);
+        } else {
+            changeCouplePixelInArray(neighbourPixels, pixels, lastModified, numPixelsWidth);
+
+        }
+
+        lastModified = swapRandomPixels(neighbourPixels, numPixelsHeight, numPixelsWidth);
+        //lastModified = swapRandomPixelsColors(neighbourPixels, numPixelsHeight, numPixelsWidth);
         
 
         switch (mode)
@@ -66,6 +57,9 @@ void runMainLoop(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth, f
         case 1:
             delta = euclidian_energy(pixels, numPixelsHeight, numPixelsWidth) -  euclidian_energy(neighbourPixels, numPixelsHeight, numPixelsWidth);
             break;
+        case 2:
+            delta = vertical_straight_energy(pixels, numPixelsHeight, numPixelsWidth) - vertical_straight_energy(neighbourPixels, numPixelsHeight, numPixelsWidth);
+            break;
         default:
             delta = 0;
             break;
@@ -74,11 +68,14 @@ void runMainLoop(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth, f
 
         // On veut minimiser l'énergie
         if (delta >= 0) {
-            copyArrayTo(pixels, neighbourPixels, numPixelsHeight, numPixelsWidth);
+            shouldModify = true;
         } else {
             p = randomFloat();
             if (exp(delta / (temperature * sqrt(numPixelsHeight * numPixelsWidth))) >= p) {
-                copyArrayTo(pixels, neighbourPixels, numPixelsHeight, numPixelsWidth);
+                shouldModify = true;    
+            }
+            else {
+                shouldModify = false;
             }
         }
         
@@ -96,14 +93,14 @@ void runMainLoop(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth, f
 int main(void) {
     srand(time(NULL));
 
-    const int screenWidth = 800;
-    const int screenHeight = 600;
+    const int screenWidth = 256;
+    const int screenHeight = 256;
 
     // Initialisation des paramètres
     
-    float pixelSize = 80.0f;
+    float pixelSize = 16.0;
 
-    int mode = 1;
+    int mode = STRAIGHT_VERTICAL;
 
 
     InitWindow(screenWidth, screenHeight, "Exemple de fenêtre avec paramètres");
@@ -111,17 +108,34 @@ int main(void) {
     int numPixelsWidth = screenWidth / pixelSize;
     int numPixelsHeight = screenHeight / pixelSize;
 
+
+
     CustomPixel* pixels = (CustomPixel*)malloc(sizeof(CustomPixel) * numPixelsHeight * numPixelsWidth);
 
-    // Initialisation des pixels personnalisés avec des couleurs aléatoires
+    Image image = LoadImage("images/logo16.png");  // Load image data into CPU memory (RAM)
+
     for (int i = 0; i < numPixelsHeight; i++) {
         for (int j = 0; j < numPixelsWidth; j++) {
             pixels[idx(i,j,numPixelsWidth)].i = i;
             pixels[idx(i,j,numPixelsWidth)].j = j;
-            int random = GetRandomValue(0, 255);
-            pixels[idx(i,j,numPixelsWidth)].color = (Color){random, random, random, 255};
+            // Initialisation des pixels personnalisés avec des couleurs aléatoires
+            
+            //int random = GetRandomValue(0, 255);
+            //pixels[idx(i,j,numPixelsWidth)].color = (Color){random, random, random, 255};
+            
+
+            // Chargment image
+            //printf("Color : %i %i %i %i\n", GetImageColor(image, j, i).r, GetImageColor(image, j, i).g, GetImageColor(image, j, i).b, GetImageColor(image, j, i).a);
+
+            pixels[idx(i,j,numPixelsWidth)].color = GetImageColor(image, j, i);
+
+
+
+ 
+
         }
     }
+    UnloadImage(image);
 
     runMainLoop(pixels, numPixelsHeight, numPixelsWidth, pixelSize, mode);
 

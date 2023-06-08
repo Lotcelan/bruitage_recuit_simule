@@ -1,16 +1,7 @@
 #ifndef UTILS
 #define UTILS
 
-#include <raylib.h>
-#include <math.h>
-#include <stdlib.h>
-
-// Structure pour représenter la couleur personnalisée d'un pixel
-typedef struct {
-    int i;
-    int j;
-    Color color;
-} CustomPixel;
+#include "def.h"
 
 // Fonction pour afficher un pixel personnalisé
 void DrawCustomPixel(const CustomPixel* pixel, int pixelSize) {
@@ -47,13 +38,24 @@ void copyArrayTo(CustomPixel* dst, CustomPixel* src, int numPixelsHeight, int nu
     }
 }
 
+void changePixelInArray(CustomPixel* dst, CustomPixel* src, Point p, int numPixelsWidth) {
+    dst[idx(p.i,p.j,numPixelsWidth)] = src[idx(p.i,p.j,numPixelsWidth)];
+}
+
+void changeCouplePixelInArray(CustomPixel* dst, CustomPixel* src, Couple cpl, int numPixelsWidth) {
+    changePixelInArray(dst, src, cpl.p1, numPixelsWidth);
+    changePixelInArray(dst, src, cpl.p2, numPixelsWidth);
+}
+
 float randomFloat()
 {
       float r = (float)rand()/(float)RAND_MAX;
       return r;
 }
 
-void swapRandomPixels(CustomPixel* pixels, int numPixelsHeight, int numPixelsWidth) {
+Couple swapRandomPixels(CustomPixel* pixels, int numPixelsHeight, int numPixelsWidth) {
+    // Renvoie les points échangés
+    
     int i = GetRandomValue(0, numPixelsHeight - 1);
     int k = GetRandomValue(0, numPixelsHeight - 1);
     int j = GetRandomValue(0, numPixelsWidth - 1);
@@ -66,6 +68,8 @@ void swapRandomPixels(CustomPixel* pixels, int numPixelsHeight, int numPixelsWid
     pixels[idx(k,l, numPixelsWidth)] = temp;
     pixels[idx(k,l, numPixelsWidth)].i = k;
     pixels[idx(k,l, numPixelsWidth)].j = l;
+
+    return (Couple){ .p1 = (Point){ .i = i, .j = j}, .p2 = (Point){ .i = k, .j = l} };
 }
 
 unsigned char getColorFromId(int id, CustomPixel pix) {
@@ -99,7 +103,9 @@ void changeColorFromId(int id, CustomPixel* pix, unsigned char newCol) {
     }
 }
 
-void swapRandomPixelsColors(CustomPixel* pixels, int numPixelsHeight, int numPixelsWidth) {
+Couple swapRandomPixelsColors(CustomPixel* pixels, int numPixelsHeight, int numPixelsWidth) {
+    // Renvoie les pixels échangés
+    
     int i = GetRandomValue(0, numPixelsHeight - 1);
     int k = GetRandomValue(0, numPixelsHeight - 1);
     int j = GetRandomValue(0, numPixelsWidth - 1);
@@ -111,6 +117,8 @@ void swapRandomPixelsColors(CustomPixel* pixels, int numPixelsHeight, int numPix
     unsigned char temp = getColorFromId(col1, pixels[idx(i,j, numPixelsWidth)]);
     changeColorFromId(col1, &pixels[idx(i,j, numPixelsWidth)], getColorFromId(col2, pixels[idx(k,l, numPixelsWidth)]));
     changeColorFromId(col2, &pixels[idx(k,l, numPixelsWidth)], temp);
+
+    return (Couple){ .p1 = (Point){ .i = i, .j = j}, .p2 = (Point){ .i = k, .j = l} };
 
 }
 

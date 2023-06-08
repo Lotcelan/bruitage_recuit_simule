@@ -6,4 +6,6 @@ On part d'une image complètement bruitée (ou image quelconque), et on utilise 
 
 ## Exemples
 
-TODO
+### Avec bruit de couleur, mode "distance euclidienne"
+
+<video src="assets/bruitage_euclidien-2023-06-08_08.46.38.mp4" controls title="exemple_couleur"></video>
