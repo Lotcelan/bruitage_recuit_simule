@@ -1,9 +1,6 @@
 #include <stdio.h>
-#include <raylib.h>
-#include <math.h>
-#include <stdlib.h>
 #include <time.h>
-
+#include "utils.h"
 
 #define COMPLETE_RANDOM 0
 #define GAUSSIAN 1
@@ -15,54 +12,12 @@
 #undef RAYGUI_IMPLEMENTATION     
 */
 
-// Structure pour représenter la couleur personnalisée d'un pixel
-typedef struct {
-    int i;
-    int j;
-    Color color;
-} CustomPixel;
-
-// Fonction pour afficher un pixel personnalisé
-void DrawCustomPixel(const CustomPixel* pixel, int pixelSize) {
-    Rectangle pixelRect = {
-        pixel->j * pixelSize,
-        pixel->i * pixelSize,
-        pixelSize,
-        pixelSize
-    };
-    DrawRectangleRec(pixelRect, pixel->color);
-}
-
-int idx(int i, int j, int numPixelsWidth) {
-    return i*numPixelsWidth + j;
-}
-
-void draw_all_pixels(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth, int pixelSize) {
-    //BeginDrawing();
-    ClearBackground(BLACK);
-
-    for (int i = 0; i < numPixelsHeight; i++) {
-        for (int j = 0; j < numPixelsWidth; j++) {
-            DrawCustomPixel(&pixels[idx(i,j,numPixelsWidth)], pixelSize);
-        }
-    }
-    EndDrawing();
-}
-void complete_random_mode(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth, float pixelSize) {
-    
-    for (int i = 0; i < numPixelsHeight; i++) {
-        for (int j = 0; j < numPixelsWidth; j++) {
-            pixels[idx(i, j, numPixelsWidth)].color = (Color){GetRandomValue(0, 255), GetRandomValue(0, 255), GetRandomValue(0, 255), 255};
-        }
-    }
-    //draw_all_pixels(pixels, numPixelsHeight, numPixelsWidth, pixelSize);
-}
 
 float euclidian_color_dist(Color col1, Color col2) {
     return sqrt( pow(col1.r - col2.r, 2) + pow(col1.g - col2.g, 2) + pow(col1.b - col2.b, 2));
 }
 
-float gaussian_energy(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth) {
+float euclidian_energy(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth) {
     float c = 0.;
     for (int i = 0; i < numPixelsHeight; i++) {
         for (int j = 0; j < numPixelsWidth; j++) {
@@ -81,43 +36,15 @@ float gaussian_energy(CustomPixel *pixels, int numPixelsHeight, int numPixelsWid
     return c;
 }
 
-void copyArrayTo(CustomPixel* dst, CustomPixel* src, int numPixelsHeight, int numPixelsWidth) {
-    for (int i = 0; i < numPixelsHeight; i++) {
-        for (int j = 0; j < numPixelsWidth; j++) {
-            dst[idx(i,j,numPixelsWidth)] = src[idx(i,j,numPixelsWidth)];
-        }
-    }
-}
 
-float randomFloat()
-{
-      float r = (float)rand()/(float)RAND_MAX;
-      return r;
-}
-
-void swapRandomPixelsColors(CustomPixel* pixels, int numPixelsHeight, int numPixelsWidth) {
-    int i = GetRandomValue(0, numPixelsHeight - 1);
-    int k = GetRandomValue(0, numPixelsHeight - 1);
-    int j = GetRandomValue(0, numPixelsWidth - 1);
-    int l = GetRandomValue(0, numPixelsWidth - 1);
-    
-    CustomPixel temp = pixels[idx(i,j, numPixelsWidth)];
-    pixels[idx(i,j, numPixelsWidth)] = pixels[idx(k,l, numPixelsWidth)];
-    pixels[idx(i,j, numPixelsWidth)].i = i;
-    pixels[idx(i,j, numPixelsWidth)].j = j;
-    pixels[idx(k,l, numPixelsWidth)] = temp;
-    pixels[idx(k,l, numPixelsWidth)].i = k;
-    pixels[idx(k,l, numPixelsWidth)].j = l;
-}
-
-void gaussian_mode(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth, float pixelSize) {
-    BeginDrawing();
-    float temperature = 1000;
-    float decayFactor = 0.9999;
+void runMainLoop(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth, float pixelSize, int mode) {
+    //BeginDrawing();
+    float temperature = 150;
+    float decayFactor = 0.999;
     float finalTemperature = 0;
 
     int iteration = 0;
-    int freqDisplay = 100;
+    int freqDisplay = 700;
 
     CustomPixel* neighbourPixels = (CustomPixel*)malloc(sizeof(CustomPixel) * numPixelsHeight * numPixelsWidth);
 
@@ -127,29 +54,43 @@ void gaussian_mode(CustomPixel *pixels, int numPixelsHeight, int numPixelsWidth,
     while (temperature > finalTemperature) {
         iteration++;
         copyArrayTo(neighbourPixels, pixels, numPixelsHeight, numPixelsWidth);
+        //swapRandomPixels(neighbourPixels, numPixelsHeight, numPixelsWidth);
         swapRandomPixelsColors(neighbourPixels, numPixelsHeight, numPixelsWidth);
         
-        delta = gaussian_energy(pixels, numPixelsHeight, numPixelsWidth) -  gaussian_energy(neighbourPixels, numPixelsHeight, numPixelsWidth);
-        //printf("Iteration : %i, delta actuel : %f, température actuelle : %f\n", iteration, delta, temperature);
+
+        switch (mode)
+        {
+        case 0:
+            delta = 0;
+            break;
+        case 1:
+            delta = euclidian_energy(pixels, numPixelsHeight, numPixelsWidth) -  euclidian_energy(neighbourPixels, numPixelsHeight, numPixelsWidth);
+            break;
+        default:
+            delta = 0;
+            break;
+        }
+        
 
         // On veut minimiser l'énergie
         if (delta >= 0) {
             copyArrayTo(pixels, neighbourPixels, numPixelsHeight, numPixelsWidth);
         } else {
             p = randomFloat();
-            printf("Calcul chelou : %f, p = %f\n", exp(delta / temperature), p);
-            if (exp(delta / temperature) >= p) {
+            if (exp(delta / (temperature * sqrt(numPixelsHeight * numPixelsWidth))) >= p) {
                 copyArrayTo(pixels, neighbourPixels, numPixelsHeight, numPixelsWidth);
             }
         }
         
         if (iteration == freqDisplay) {
             iteration = 0;
+            //BeginDrawing();
             draw_all_pixels(pixels, numPixelsHeight, numPixelsWidth, pixelSize);
+            //EndDrawing();
         }
         temperature *= decayFactor;
     }
-    EndDrawing();
+    //EndDrawing();
 }
 
 int main(void) {
@@ -160,7 +101,7 @@ int main(void) {
 
     // Initialisation des paramètres
     
-    float pixelSize = 40.0f;
+    float pixelSize = 80.0f;
 
     int mode = 1;
 
@@ -177,47 +118,13 @@ int main(void) {
         for (int j = 0; j < numPixelsWidth; j++) {
             pixels[idx(i,j,numPixelsWidth)].i = i;
             pixels[idx(i,j,numPixelsWidth)].j = j;
-            pixels[idx(i,j,numPixelsWidth)].color = (Color){GetRandomValue(0, 255), GetRandomValue(0, 255), GetRandomValue(0, 255), 255};
+            int random = GetRandomValue(0, 255);
+            pixels[idx(i,j,numPixelsWidth)].color = (Color){random, random, random, 255};
         }
     }
 
+    runMainLoop(pixels, numPixelsHeight, numPixelsWidth, pixelSize, mode);
 
-    /*
-    while (!WindowShouldClose()) {
-
-
-        BeginDrawing();
-        ClearBackground(BLACK);
-        draw_all_pixels(pixels, numPixelsHeight, numPixelsWidth, pixelSize);
-
-        EndDrawing();
-
-        switch (mode)
-        {
-        case 0:
-            complete_random_mode(pixels, numPixelsHeight, numPixelsWidth, pixelSize);
-        case 1:
-            gaussian_mode(pixels, numPixelsHeight, numPixelsWidth, pixelSize);
-        default:
-            break;
-        }
-
-        
-
-        // Afficher les pixels personnalisés
-        
-
-    } */
-
-    switch (mode)
-    {
-    case 0:
-        complete_random_mode(pixels, numPixelsHeight, numPixelsWidth, pixelSize);
-    case 1:
-        gaussian_mode(pixels, numPixelsHeight, numPixelsWidth, pixelSize);
-    default:
-        break;
-    }
 
     CloseWindow();
 
